@@ -32,7 +32,7 @@ from sklearn.grid_search import GridSearchCV
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data/')
-TEST_DATA = os.path.join(DATA_DIR, 'test/')
+TEST_DATA = os.path.join(DATA_DIR, 'test_all_join_2/')
 
 TARGET_COLUMN_NAME = 't_t_target'
 LIST_FEATURE_COLUMN_NAME = ['t_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't_t_Cliente_ID', 't_t_Producto_ID',
@@ -86,7 +86,7 @@ def main():
 
     list_file_path = glob.glob(os.path.join(TEST_DATA, '*gz'))
 
-    with open('xgb_model.pkl', 'rb') as f:
+    with open('list_xgb_model.pkl', 'rb') as f:
         list_estimetor = pickle.load(f)
 
     df_ans = pandas.DataFrame()
@@ -96,7 +96,7 @@ def main():
         logger.info('end load')
         df = df.fillna(0)
         data = df[LIST_FEATURE_COLUMN_NAME].values
-        predict = numpy.mean([est.predict(data) for est in list_estimetor], axis=0)                
+        predict = numpy.mean([est.predict(data) for est in list_estimetor], axis=0)
         predict = numpy.where(predict < 0, 0, predict)
         logger.info('end predict')
         ans = pandas.DataFrame(df['t_id'])
