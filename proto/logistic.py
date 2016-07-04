@@ -35,16 +35,13 @@ from poisson_sgd import SGDPoissonRegressor
 #from utils.estimator import StackedEstimator, EnsembleEstimator
 #from utils.round_estimator import RoundEstimator
 
-from feature import LIST_IMPORTANCE_FEATURES
-
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data/')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
 TARGET_COLUMN_NAME = 't_t_target'
-LIST_FEATURE_COLUMN_NAME = ['t_t_Semana_dur',
-                            't_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't_t_Cliente_ID', 't_t_Producto_ID',
+LIST_FEATURE_COLUMN_NAME = ['t_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't_t_Cliente_ID', 't_t_Producto_ID',
                             't_t_Venta_uni_hoy', 't_t_Venta_hoy', 't_t_Dev_uni_proxima', 't_t_Dev_proxima',
                             't_t_Demanda_uni_equil', 't_a_lat', 't_a_lon', 't_p_amount', 't_p_mk_bim',
                             't_p_mk_mla', 't_p_mk_tr', 't_p_mk_lar', 't_p_mk_gbi', 't_p_mk_won', 't_p_mk_dh', 't_p_mk_lon',
@@ -73,7 +70,6 @@ LIST_FEATURE_COLUMN_NAME = ['t_t_Semana_dur',
                             'cl_cl_min_venta_uni', 'cl_cl_avg_venta_uni', 'cl_cl_max_venta_hoy', 'cl_cl_min_venta_hoy', 'cl_cl_avg_venta_hoy', 'cl_cl_max_dev_uni',
                             'cl_cl_min_dev_uni', 'cl_cl_avg_dev_uni', 'cl_cl_max_dev_hoy', 'cl_cl_min_dev_hoy', 'cl_cl_avg_dev_hoy', 'cl_cl_max_demand', 'cl_cl_min_demand', 'cl_cl_avg_demand']
 
-LIST_FEATURE_COLUMN_NAME = LIST_IMPORTANCE_FEATURES[:162]
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -92,12 +88,12 @@ def bimbo_scoring(estimetor, X, y):
 
     pred_y = estimetor.predict(X)
     pred_y = numpy.where(pred_y < 0, 0, pred_y)
-    return - bimbo_score_func(pred_y, y)
+    return bimbo_score_func(pred_y, y)
 
 def main():
 
 
-    list_file_path = glob.glob(os.path.join(DATA_DIR, 'train_all_join_2/*gz'))
+    list_file_path = glob.glob(os.path.join(DATA_DIR, '*gz'))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -120,6 +116,7 @@ def main():
     test_non_zero_data = test_df_non_zero[LIST_FEATURE_COLUMN_NAME].values
     test_non_zero_target = test_df_non_zero[TARGET_COLUMN_NAME].values
 
+
     
     n_estimators = 30
     """
@@ -129,38 +126,35 @@ def main():
                                         warm_start=True,
                                         n_jobs=-1)
     """
-    model = RandomForestRegressor(n_estimators=n_estimators,
-                                  min_samples_leaf=10,
-                                  random_state=0,
-                                  warm_start=True,
-                                  n_jobs=-1)
     """
-    all_params = {'max_depth': [None],
-                  'min_samples_leaf': [10],
-                  'max_features': ['log2']
-              }
+    model = SGDRegressor(loss='huber',
+                         penalty='l1',
+                         average=100,
+                         warm_start=True)
+    """
+    model = ElasticNet(random_state=0)
+    all_params = {'alpha': [0.01, 0.1, 1],
+                  'l1_ratio': [0.3, 0.5, 0.7]}
 
     max_score = - 1.0E10
     max_params = None
     logger.info('cv start')    
+    _, train_idx = list(KFold(data.shape[0], 100, shuffle=True))[0]
     for params in ParameterGrid(all_params):
         model.set_params(**params)
-        model.fit(data, target)
+        model.fit(data[train_idx], numpy.log(target[train_idx] + 1))
         predict = model.predict(test_data)
+        predict = numpy.exp(predict) - 1
         score = bimbo_score_func(predict, test_target)
         logger.info('params: %s'%(params))
         logger.info('score: %s, best_score: %s'%(score, max_score))
         if score > max_score:
             max_params = params
             max_score = score
-
+            
     model.set_params(**max_params)
     model.set_params(warm_start=True)
 
-    logger.info('best_params: %s'%params)
-x    """
-    
-    #model = SGDPoissonRegressor()
     for i in range(1, len(list_file_path)):
         logger.info('%s: %s'%(i, list_file_path[i]))
 
@@ -174,24 +168,24 @@ x    """
         test_non_zero_data = test_df_non_zero[LIST_FEATURE_COLUMN_NAME].values
         test_non_zero_target = test_df_non_zero[TARGET_COLUMN_NAME].values
 
-        model.fit(non_zero_data, non_zero_target)
+        model.fit(data, numpy.log(target + 1))
         #zero_model.fit(data, zero_target)
 
         #zero_predict = zero_model.predict(data)
         predict = model.predict(data)
+        predict = numpy.exp(predict) - 1
         #predict = zero_predict * predict
 
         score = bimbo_score_func(predict, target)
         logger.info('INSAMPLE score: %s'%score)
         #zero_predict = zero_model.predict(test_data)
         predict = model.predict(test_data)
+        predict = numpy.exp(predict) - 1
         #predict = zero_predict * predict
 
         score = bimbo_score_func(predict, test_target)
         logger.info('score: %s'%score)
 
-        n_estimators += 10        
-        model.set_params(n_estimators=n_estimators)
         #zero_model.set_params(n_estimators=n_estimators)
 
         df = test_df
@@ -203,11 +197,9 @@ x    """
         non_zero_target = test_non_zero_target
 
         
-    with open('rf_model_2.pkl', 'wb') as f:
+    with open('sgd_model.pkl', 'wb') as f:
         pickle.dump(model, f, -1)
-    #with open('rf_model_zero.pkl', 'wb') as f:
-    #    pickle.dump(zero_model, f, -1)
-
+ 
     """
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -228,7 +220,7 @@ x    """
         test_df = test_df.fillna(0)
         test_data = numpy.asarray(test_df[LIST_FEATURE_COLUMN_NAME].values, order='C')
         test_target = numpy.asarray(test_df[TARGET_COLUMN_NAME].values, order='C')
-
+        
         model.fit(data, target)
         score = bimbo_scoring(model, data, target)
         logger.info('INSAMPLE score: %s'%score)

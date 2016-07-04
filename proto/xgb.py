@@ -20,7 +20,7 @@ from sklearn.naive_bayes import BernoulliNB, GaussianNB, MultinomialNB
 from sklearn.cross_validation import StratifiedKFold, cross_val_score, KFold
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.grid_search import GridSearchCV
+from sklearn.grid_search import GridSearchCV, ParameterGrid
 
 from xgboost import XGBClassifier, XGBRegressor
 
@@ -36,7 +36,8 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
 TARGET_COLUMN_NAME = 't_t_target'
-LIST_FEATURE_COLUMN_NAME = ['t_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't_t_Cliente_ID', 't_t_Producto_ID',
+LIST_FEATURE_COLUMN_NAME = ['t_t_Semana_dur',
+                            't_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't_t_Cliente_ID', 't_t_Producto_ID',
                             't_t_Venta_uni_hoy', 't_t_Venta_hoy', 't_t_Dev_uni_proxima', 't_t_Dev_proxima',
                             't_t_Demanda_uni_equil', 't_a_lat', 't_a_lon', 't_p_amount', 't_p_mk_bim',
                             't_p_mk_mla', 't_p_mk_tr', 't_p_mk_lar', 't_p_mk_gbi', 't_p_mk_won', 't_p_mk_dh', 't_p_mk_lon',
@@ -68,7 +69,7 @@ LIST_FEATURE_COLUMN_NAME = ['t_t_Agencia_ID', 't_t_Canal_ID', 't_t_Ruta_SAK', 't
 
  # best_params: {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 10, 'min_child_weight': 0.01}
 
- log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
+log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
                     datefmt='%Y-%m-%d/%H:%M:%S',
                     level='DEBUG')
@@ -90,12 +91,17 @@ def bimbo_scoring(estimetor, X, y):
 def main():
 
 
-    list_file_path = glob.glob(os.path.join(DATA_DIR, '*gz'))
+    list_file_path = glob.glob(os.path.join(DATA_DIR, 'train_all_join_2/*gz'))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
-    #df = df.fillna(0)
+    df = df.fillna(0)
     data = df[LIST_FEATURE_COLUMN_NAME].values
     target = df[TARGET_COLUMN_NAME].values
+
+    test_df = pandas.read_csv(list_file_path[1], compression='gzip')
+    test_df = test_df.fillna(0)
+    test_data = test_df[LIST_FEATURE_COLUMN_NAME].values
+    test_target = test_df[TARGET_COLUMN_NAME].values
 
     model = XGBRegressor(seed=0)
     """
@@ -107,8 +113,33 @@ def main():
               }
     cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=3, refit=False, verbose=10)
     cv.fit(data, target)
-    """
+
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 10, 'min_child_weight': 0.01}
+
+    all_params = {'max_depth': [20, 30, 50, 100],
+                  'learning_rate': [0.1],
+                  'min_child_weight': [0.1],
+                  'subsample': [1],
+                  'colsample_bytree': [0.5]}
+
+    max_score = - 1.0E10
+    max_params = None
+    logger.info('cv start')    
+    for params in ParameterGrid(all_params):
+        model.set_params(**params)
+        model.fit(data, target)
+        predict = model.predict(test_data)
+        predict = numpy.where(predict < 0, 0, predict)
+        score = bimbo_score_func(predict, test_target)
+        logger.info('params: %s'%(params))
+        logger.info('score: %s, best_score: %s'%(score, max_score))
+        if score > max_score:
+            max_params = params
+            max_score = score
+    """
+    params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 20, 'min_child_weight': 0.01}
+    model.set_params(**params)
+    
     logger.info('best_params: %s'%params)
     list_estimator = []
     for i in range(1, len(list_file_path)):
@@ -116,7 +147,7 @@ def main():
         model = XGBRegressor(seed=0)
         model.set_params(**params)
         test_df = pandas.read_csv(list_file_path[i], compression='gzip')
-        #test_df = test_df.fillna(0)
+        test_df = test_df.fillna(0)
         test_data = test_df[LIST_FEATURE_COLUMN_NAME].values
         test_target = test_df[TARGET_COLUMN_NAME].values
         

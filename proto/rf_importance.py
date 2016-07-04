@@ -86,25 +86,11 @@ def main():
 
     list_file_path = glob.glob(os.path.join(TEST_DATA, '*gz'))
 
-    with open('xgb_model.pkl', 'rb') as f:
+    with open('rf_model.pkl', 'rb') as f:
         model = pickle.load(f)
 
-    df_ans = pandas.DataFrame()
-    for i in range(len(list_file_path)):
-        logger.info('%s: %s' % (i, list_file_path[i]))
-        df = pandas.read_csv(list_file_path[i], compression='gzip')
-        logger.info('end load')
-        df = df.fillna(0)
-        data = df[LIST_FEATURE_COLUMN_NAME].values
-        predict = model.predict(data)
-        predict = numpy.where(predict < 0, 0, predict)
-        logger.info('end predict')
-        ans = pandas.DataFrame(df['t_id'])
-        ans.columns = ['id']
-        ans['Demanda_uni_equil'] = predict
-        df_ans = df_ans.append(ans)
-
-    df_ans.to_csv('submit_xgb_2.csv', index=False)
+    for i, score in enumerate(model.feature_importances_):
+        print i, LIST_FEATURE_COLUMN_NAME[i], score
 
 if __name__ == '__main__':
     main()
