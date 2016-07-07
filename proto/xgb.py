@@ -22,7 +22,7 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.grid_search import GridSearchCV
 
-from xgboost import XGBClassifier, XGBRegressor
+from xgboost import XGBClassifier, XGBRegressor, DMatrix
 
 #from utils.load_data import load_data
 #from utils.train_as_class import get_prob_argmax_label
@@ -31,7 +31,7 @@ from xgboost import XGBClassifier, XGBRegressor
 #from utils.round_estimator import RoundEstimator
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = '/home/ubuntu/data/data'
+DATA_DIR = os.path.join(APP_ROOT, 'data/')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
@@ -47,8 +47,20 @@ logging.basicConfig(format=log_fmt,
 logger = logging.getLogger(__name__)
 
 
+def bimbo_obj(y_true, y_pred):
+    error = numpy.log(y_pred + 1) - numpy.log(y_true.get_label() + 1)
+    grad = error / (y_pred + 1)
+    hess = (1 - error) / (y_pred + 1)**2
+    return grad, hess
+
+
 def bimbo_score_func(pred_y, y):
     score = numpy.sqrt(numpy.mean((numpy.log(pred_y + 1) - numpy.log(y + 1))**2))
+    return score
+
+
+def bimbo_score_func_xg(pred_y, y):
+    score = numpy.sqrt(numpy.mean((numpy.log(pred_y + 1) - numpy.log(y.get_label() + 1))**2))
     return score
 
 
@@ -63,7 +75,7 @@ def bimbo_scoring(estimetor, X, y):
 
 def main():
 
-    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_join_all_4/*gz')))
+    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_all_join_4/*gz')))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -71,18 +83,22 @@ def main():
     target = df[TARGET_COLUMN_NAME].values
 
     model = XGBRegressor(seed=0)
-
     """
-    params = {'max_depth': [3, 5, 10],
-              'learning_rate': [0.01, 0.1, 1],
-              'min_child_weight': [0.01, 0.1, 1],
-              'subsample': [0.1, 0.5, 1],
-              'colsample_bytree': [0.3, 0.5, 1],
+    params = {'max_depth': [20],
+              'learning_rate': [0.1],
+              'min_child_weight': [0.01],
+              'subsample': [1],
+              'colsample_bytree': [0.5],
+              'reg_alpha': [0.01, 1, 10],
+              'reg_lambda': [0.01, 1, 10],
+              'colsample_bytree': [0.5],
               }
-    cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=3, refit=False, verbose=10)
+    cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=1, refit=False, verbose=10)
     cv.fit(data, target)
+    logger.info('cv best_params: %s' % cv.best_params_)
     """
-    params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 20, 'min_child_weight': 0.01}
+    params = {'subsample': 1, 'learning_rate': 0.01, 'colsample_bytree': 0.5,
+              'max_depth': 18, 'min_child_weight': 0.01, 'reg_alpha': 1., 'n_estimators': 500}
 
     logger.info('best_params: %s' % params)
     list_estimator = []
@@ -95,7 +111,7 @@ def main():
         test_data = test_df[LIST_FEATURE_COLUMN_NAME].values
         test_target = test_df[TARGET_COLUMN_NAME].values
 
-        model.fit(data, target)
+        model.fit(data, target, eval_metric=bimbo_score_func_xg)
         list_estimator.append(model)
 
         if i == 1 or i == len(list_file_path) - 1:
