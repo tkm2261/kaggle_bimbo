@@ -44,14 +44,21 @@ logger = logging.getLogger(__name__)
 
 def main():
 
-    list_file_path = ['submit.csv', 'submit_rf.csv']
+    list_file_path = ['submit_lasso_3.csv', 'submit_xgb_3.csv', 'submit_rf_3.csv']
 
     list_predict = []
     for i in range(len(list_file_path)):
         df = pandas.read_csv(list_file_path[i])
-        list_predict.append(df['Demanda_uni_equil'])
+        predict = df['Demanda_uni_equil'].values
+        predict = numpy.where(predict < 0, 0, predict)
+        list_predict.append(predict)
 
-    predict = numpy.mean(list_predict, axis=0)
+    data = numpy.array(list_predict).T
+    with open('mix_model.pkl', 'rb') as f:
+        model = pickle.load(f)
+
+    predict = model.predict(data)
+    predict = numpy.where(predict < 0, 0, predict)
     df_ans = pandas.DataFrame(numpy.c_[df['id'].values, predict],
                               columns=['id', 'Demanda_uni_equil'])
     df_ans['id'] = df_ans['id'].astype(int)
