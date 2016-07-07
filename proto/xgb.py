@@ -31,12 +31,12 @@ from xgboost import XGBClassifier, XGBRegressor
 #from utils.round_estimator import RoundEstimator
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT, 'data/')
+DATA_DIR = '/home/ubuntu/data/data'
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
 TARGET_COLUMN_NAME = 't_t_target'
-from feature_3 import LIST_FEATURE_COLUMN_NAME
+from feature_4 import LIST_FEATURE_COLUMN_NAME
 # best_params: {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree':
 # 0.5, 'max_depth': 10, 'min_child_weight': 0.01}
 
@@ -63,7 +63,7 @@ def bimbo_scoring(estimetor, X, y):
 
 def main():
 
-    list_file_path = glob.glob(os.path.join(DATA_DIR, 'train_all_join_3/*gz'))
+    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_join_all_4/*gz')))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -98,15 +98,16 @@ def main():
         model.fit(data, target)
         list_estimator.append(model)
 
-        predict = numpy.mean([est.predict(data) for est in list_estimator], axis=0)
-        predict = numpy.where(predict < 0, 0, predict)
-        score = bimbo_score_func(predict, target)
-        logger.info('INSAMPLE score: %s' % score)
+        if i == 1 or i == len(list_file_path) - 1:
+            predict = numpy.mean([est.predict(data) for est in list_estimator], axis=0)
+            predict = numpy.where(predict < 0, 0, predict)
+            score = bimbo_score_func(predict, target)
+            logger.info('INSAMPLE score: %s' % score)
 
-        predict = numpy.mean([est.predict(test_data) for est in list_estimator], axis=0)
-        predict = numpy.where(predict < 0, 0, predict)
-        score = bimbo_score_func(predict, test_target)
-        logger.info('score: %s' % score)
+            predict = numpy.mean([est.predict(test_data) for est in list_estimator], axis=0)
+            predict = numpy.where(predict < 0, 0, predict)
+            score = bimbo_score_func(predict, test_target)
+            logger.info('score: %s' % score)
 
         # model.set_params(n_estimators=n_estimators)
 
@@ -114,7 +115,7 @@ def main():
         data = test_data
         target = test_target
 
-    with open('list_xgb_model_3.pkl', 'wb') as f:
+    with open('list_xgb_model_4.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)
 
 if __name__ == '__main__':

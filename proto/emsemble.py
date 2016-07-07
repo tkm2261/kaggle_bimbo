@@ -44,22 +44,24 @@ logger = logging.getLogger(__name__)
 
 def main():
 
-    list_file_path = ['submit_lasso_3.csv', 'submit_xgb_3.csv', 'submit_rf_3.csv']
+    list_file_path = ['submit_lasso_4.csv', 'submit_xgb_4.csv', 'submit_rf_4.csv']
 
     list_predict = []
+    data = None
     for i in range(len(list_file_path)):
-        df = pandas.read_csv(list_file_path[i])
+        df = pandas.read_csv(list_file_path[i], index_col='id')
         predict = df['Demanda_uni_equil'].values
-        predict = numpy.where(predict < 0, 0, predict)
-        list_predict.append(predict)
+        if data is not None:
+            data = pandas.merge(data, df, left_index=True, right_index=True)
+        else:
+            data = df
 
-    data = numpy.array(list_predict).T
     with open('mix_model.pkl', 'rb') as f:
         model = pickle.load(f)
 
-    predict = model.predict(data)
+    predict = model.predict(data.values)
     predict = numpy.where(predict < 0, 0, predict)
-    df_ans = pandas.DataFrame(numpy.c_[df['id'].values, predict],
+    df_ans = pandas.DataFrame(numpy.c_[data.index.values, predict],
                               columns=['id', 'Demanda_uni_equil'])
     df_ans['id'] = df_ans['id'].astype(int)
     df_ans.to_csv('submit_mix.csv', index=False)

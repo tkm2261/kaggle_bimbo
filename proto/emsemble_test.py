@@ -31,7 +31,7 @@ from xgboost import XGBClassifier, XGBRegressor
 #from utils.round_estimator import RoundEstimator
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT, 'data/')
+DATA_DIR = os.path.join(APP_ROOT, '../data/data')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
@@ -70,13 +70,13 @@ def main():
     data = df[LIST_FEATURE_COLUMN_NAME].values
     target = df[TARGET_COLUMN_NAME].values
 
-    with open('lasso_model_3.pkl', 'rb') as f:
+    with open('lasso_model_4.pkl', 'rb') as f:
         lasso_model = pickle.load(f)
 
-    with open('list_xgb_model_3.pkl', 'rb') as f:
+    with open('list_xgb_model_4.pkl', 'rb') as f:
         list_xgb_model = pickle.load(f)
 
-    with open('rf_model.pkl', 'rb') as f:
+    with open('rf_model_4.pkl', 'rb') as f:
         rf_model = pickle.load(f)
 
     list_predict = []
@@ -100,7 +100,7 @@ def main():
     list_predict.append(predict)
 
     data = numpy.array(list_predict).T
-    model = LinearRegression()
+    model = XGBRegressor()#LinearRegression()
 
     score = numpy.mean(cross_val_score(model, data, target, scoring=bimbo_scoring))
     logger.info('mix score: %s' % score)
