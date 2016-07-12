@@ -36,7 +36,7 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
 TARGET_COLUMN_NAME = 't_t_target'
-from feature_4 import LIST_FEATURE_COLUMN_NAME
+from feature_5_cl_qua_ex import LIST_FEATURE_COLUMN_NAME
 # best_params: {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree':
 # 0.5, 'max_depth': 10, 'min_child_weight': 0.01}
 
@@ -75,7 +75,7 @@ def bimbo_scoring(estimetor, X, y):
 
 def main():
 
-    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_all_join_4/*gz')))
+    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_join_all_5_cl_qua_ex/*gz')))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -98,23 +98,32 @@ def main():
     logger.info('cv best_params: %s' % cv.best_params_)
     """
     params = {'subsample': 1, 'learning_rate': 0.01, 'colsample_bytree': 0.5,
-              'max_depth': 18, 'min_child_weight': 0.01, 'reg_alpha': 1., 'n_estimators': 500}
+              'max_depth': 20, 'min_child_weight': 0.01, 'reg_alpha': 1.}
 
     logger.info('best_params: %s' % params)
     list_estimator = []
+    flg = 0
     for i in range(1, len(list_file_path)):
         logger.info('%s: %s' % (i, list_file_path[i]))
-        model = XGBRegressor(seed=0)
-        model.set_params(**params)
         test_df = pandas.read_csv(list_file_path[i], compression='gzip')
         test_df = test_df.fillna(0)
         test_data = test_df[LIST_FEATURE_COLUMN_NAME].values
         test_target = test_df[TARGET_COLUMN_NAME].values
+        if flg < 3:
+            data = numpy.r_[data, test_data]
+            target = numpy.r_[target, test_target]
+            flg += 1
+            continue
+        else:
+            flg = 0
+
+        model = XGBRegressor(seed=0)
+        model.set_params(**params)
 
         model.fit(data, target, eval_metric=bimbo_score_func_xg)
         list_estimator.append(model)
 
-        if i == 1 or i == len(list_file_path) - 1:
+        if i == 2 or i == len(list_file_path) - 1 or i == len(list_file_path) - 2:
             predict = numpy.mean([est.predict(data) for est in list_estimator], axis=0)
             predict = numpy.where(predict < 0, 0, predict)
             score = bimbo_score_func(predict, target)
@@ -131,7 +140,7 @@ def main():
         data = test_data
         target = test_target
 
-    with open('list_xgb_model_4.pkl', 'wb') as f:
+    with open('list_xgb_model_5_cl_qua_ex.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)
 
 if __name__ == '__main__':
