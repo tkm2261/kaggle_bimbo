@@ -123,7 +123,7 @@ def main():
         model.fit(data, target, eval_metric=bimbo_score_func_xg)
         list_estimator.append(model)
 
-        if i == 2 or i == len(list_file_path) - 1 or i == len(list_file_path) - 2:
+        if flg == 0:
             predict = numpy.mean([est.predict(data) for est in list_estimator], axis=0)
             predict = numpy.where(predict < 0, 0, predict)
             score = bimbo_score_func(predict, target)
