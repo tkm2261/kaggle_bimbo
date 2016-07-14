@@ -82,6 +82,7 @@ def main():
     cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=3, refit=False, verbose=10)
     cv.fit(data, target)
     """
+
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 13, 'min_child_weight': 0.01}
 
     logger.info('best_params: %s' % params)
