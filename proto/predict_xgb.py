@@ -32,11 +32,11 @@ from sklearn.grid_search import GridSearchCV
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
-TEST_DATA = os.path.join(DATA_DIR, 'test_join_all_5_cl/')
+TEST_DATA = os.path.join(DATA_DIR, 'test_join_all_5_cl_qua/')
 
 TARGET_COLUMN_NAME = 't_t_target'
 
-from feature_5_cl import LIST_FEATURE_COLUMN_NAME
+from feature_5_cl_qua import LIST_FEATURE_COLUMN_NAME
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -59,7 +59,7 @@ def main():
 
     list_file_path = glob.glob(os.path.join(TEST_DATA, '*gz'))
 
-    with open('list_xgb_model_5_cl.pkl', 'rb') as f:
+    with open('list_xgb_model_5_cl_qua.pkl', 'rb') as f:
         list_estimetor = pickle.load(f)
 
     df_ans = pandas.DataFrame()
@@ -77,7 +77,7 @@ def main():
         ans['Demanda_uni_equil'] = predict
         df_ans = df_ans.append(ans)
 
-    df_ans.to_csv('submit_xgb_5_cl.csv', index=False)
+    df_ans.to_csv('submit_xgb_5_cl_qua.csv', index=False)
 
 if __name__ == '__main__':
     main()

@@ -22,7 +22,7 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.grid_search import GridSearchCV
 
-from xgboost import XGBClassifier, XGBRegressor, DMatrix
+from xgboost import XGBClassifier, XGBRegressor
 
 #from utils.load_data import load_data
 #from utils.train_as_class import get_prob_argmax_label
@@ -31,12 +31,12 @@ from xgboost import XGBClassifier, XGBRegressor, DMatrix
 #from utils.round_estimator import RoundEstimator
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT, 'data/')
+DATA_DIR = '/home/ubuntu/data/data'
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_all_join000000000001.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'hogehoge')
 
 TARGET_COLUMN_NAME = 't_t_target'
-from feature_5_cl_qua_ex import LIST_FEATURE_COLUMN_NAME
+from feature_5_cl_qua import LIST_FEATURE_COLUMN_NAME
 # best_params: {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree':
 # 0.5, 'max_depth': 10, 'min_child_weight': 0.01}
 
@@ -47,25 +47,13 @@ logging.basicConfig(format=log_fmt,
 logger = logging.getLogger(__name__)
 
 
-def bimbo_obj(y_true, y_pred):
-    error = numpy.log(y_pred + 1) - numpy.log(y_true.get_label() + 1)
-    grad = error / (y_pred + 1)
-    hess = (1 - error) / (y_pred + 1)**2
-    return grad, hess
-
-
 def bimbo_score_func(pred_y, y):
     score = numpy.sqrt(numpy.mean((numpy.log(pred_y + 1) - numpy.log(y + 1))**2))
     return score
 
 
-def bimbo_score_func_xg(pred_y, y):
-    score = numpy.sqrt(numpy.mean((numpy.log(pred_y + 1) - numpy.log(y.get_label() + 1))**2))
-    return score
-
-
 def bimbo_scoring(estimetor, X, y):
-    """評価関数
+    """荅�箴♂�∽��
     """
 
     pred_y = estimetor.predict(X)
@@ -75,7 +63,7 @@ def bimbo_scoring(estimetor, X, y):
 
 def main():
 
-    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_join_all_5_cl_qua_ex/*gz')))
+    list_file_path = sorted(glob.glob(os.path.join(DATA_DIR, 'train_join_all_5_cl_qua/*gz')))
 
     df = pandas.read_csv(list_file_path[0], compression='gzip')
     df = df.fillna(0)
@@ -83,22 +71,18 @@ def main():
     target = df[TARGET_COLUMN_NAME].values
 
     model = XGBRegressor(seed=0)
+
     """
-    params = {'max_depth': [20],
-              'learning_rate': [0.1],
-              'min_child_weight': [0.01],
-              'subsample': [1],
-              'colsample_bytree': [0.5],
-              'reg_alpha': [0.01, 1, 10],
-              'reg_lambda': [0.01, 1, 10],
-              'colsample_bytree': [0.5],
+    params = {'max_depth': [3, 5, 10],
+              'learning_rate': [0.01, 0.1, 1],
+              'min_child_weight': [0.01, 0.1, 1],
+              'subsample': [0.1, 0.5, 1],
+              'colsample_bytree': [0.3, 0.5, 1],
               }
-    cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=1, refit=False, verbose=10)
+    cv = GridSearchCV(model, params, scoring=bimbo_scoring, n_jobs=3, refit=False, verbose=10)
     cv.fit(data, target)
-    logger.info('cv best_params: %s' % cv.best_params_)
     """
-    params = {'subsample': 1, 'learning_rate': 0.01, 'colsample_bytree': 0.5,
-              'max_depth': 20, 'min_child_weight': 0.01, 'reg_alpha': 1.}
+    params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5, 'max_depth': 13, 'min_child_weight': 0.01}
 
     logger.info('best_params: %s' % params)
     list_estimator = []
@@ -109,7 +93,8 @@ def main():
         test_df = test_df.fillna(0)
         test_data = test_df[LIST_FEATURE_COLUMN_NAME].values
         test_target = test_df[TARGET_COLUMN_NAME].values
-        if flg < 3:
+        
+        if flg < 4:
             data = numpy.r_[data, test_data]
             target = numpy.r_[target, test_target]
             flg += 1
@@ -119,11 +104,10 @@ def main():
 
         model = XGBRegressor(seed=0)
         model.set_params(**params)
-
-        model.fit(data, target, eval_metric=bimbo_score_func_xg)
+        model.fit(data, target)
         list_estimator.append(model)
 
-        if flg == 0:
+        if 1:
             predict = numpy.mean([est.predict(data) for est in list_estimator], axis=0)
             predict = numpy.where(predict < 0, 0, predict)
             score = bimbo_score_func(predict, target)
@@ -140,7 +124,7 @@ def main():
         data = test_data
         target = test_target
 
-    with open('list_xgb_model_5_cl_qua_ex.pkl', 'wb') as f:
+    with open('list_xgb_model_5_cl_qua.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)
 
 if __name__ == '__main__':
