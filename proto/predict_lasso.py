@@ -31,12 +31,11 @@ from sklearn.grid_search import GridSearchCV
 #from utils.round_estimator import RoundEstimator
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT, 'data')
-TEST_DATA = os.path.join(DATA_DIR, 'test_join_all_5_cl_qua/')
+DATA_DIR = os.path.join(APP_ROOT, 'data/')
+TEST_DATA = os.path.join(DATA_DIR, 'test_all_join_4/')
 
 TARGET_COLUMN_NAME = 't_t_target'
-
-from feature_5_cl_qua import LIST_FEATURE_COLUMN_NAME
+from feature_4 import LIST_FEATURE_COLUMN_NAME
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -59,8 +58,8 @@ def main():
 
     list_file_path = glob.glob(os.path.join(TEST_DATA, '*gz'))
 
-    with open('list_xgb_model_5_cl_qua.pkl', 'rb') as f:
-        list_estimetor = pickle.load(f)
+    with open('lasso_model_4.pkl', 'rb') as f:
+        model = pickle.load(f)
 
     df_ans = pandas.DataFrame()
     for i in range(len(list_file_path)):
@@ -69,7 +68,7 @@ def main():
         logger.info('end load')
         df = df.fillna(0)
         data = df[LIST_FEATURE_COLUMN_NAME].values
-        predict = numpy.mean([est.predict(data) for est in list_estimetor], axis=0)
+        predict = model.predict(data)
         predict = numpy.where(predict < 0, 0, predict)
         logger.info('end predict')
         ans = pandas.DataFrame(df['t_id'])
@@ -77,7 +76,7 @@ def main():
         ans['Demanda_uni_equil'] = predict
         df_ans = df_ans.append(ans)
 
-    df_ans.to_csv('submit_xgb_5_cl_qua.csv', index=False)
+    df_ans.to_csv('submit_lasso_4.csv', index=False)
 
 if __name__ == '__main__':
     main()
